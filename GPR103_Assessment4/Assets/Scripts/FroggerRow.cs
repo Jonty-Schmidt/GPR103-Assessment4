@@ -24,7 +24,31 @@ public class FroggerRow : MonoBehaviour
     //===========================  Function - Start()  =====================================//
     void Start()
     {
+        for (int i = 0; i < Width; i++) {
+            GameObject obj = new GameObject();
+            obj.transform.position = new Vector3(this.transform.position.x - Width / 2 + i, this.transform.position.y, 5);
+            obj.transform.parent = this.transform;
 
+            Sprite sprite;
+            switch (type) {
+                case Type.ROAD:
+                    sprite = FindObjectOfType<GameManager>().spriteOptions.ground;
+                    break;
+
+                case Type.SAFE:
+                    sprite = FindObjectOfType<GameManager>().spriteOptions.safe;
+                    break;
+
+                case Type.WATER:
+                    sprite = FindObjectOfType<GameManager>().spriteOptions.water;
+                    break;
+
+                default:
+                    sprite = null;
+                    break;
+            }
+            obj.AddComponent<SpriteRenderer>().sprite = sprite;
+        }
     }
 
     //===========================  Function - Update()  =====================================//
