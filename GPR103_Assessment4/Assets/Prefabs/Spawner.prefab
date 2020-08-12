@@ -47,13 +47,11 @@ MonoBehaviour:
     type: 3}
   PrefabWater: {fileID: 3371488229811658790, guid: 9b52545deb82c734795d88849e7e003d,
     type: 3}
+  PrefabFinish: {fileID: 2855504112278048799, guid: ddb5ac42c3dd7f74d949810af797d230,
+    type: 3}
   iterator: 0
   SpawnPosition: {x: 0, y: 0}
-  moveDirection: 1
-  speed: 10
+  velocity: 0
   delay: 2.5
-  timer: 0
-  water: 0
-  log: 0
-  safe: 0
-  row: 0
+  type: 0
+  rowIndex: 0

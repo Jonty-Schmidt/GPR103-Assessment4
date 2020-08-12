@@ -5,73 +5,97 @@ using UnityEngine;
 public class GameManager : MonoBehaviour
 {
     //====================================  Variables  ===========================================================================//
-    [Header("Scoring")]
-    public int currentScore = 0;                            //The current score in this round.
-    public int highScore = 0;                               //The highest score achieved either in this session or over the lifetime of the game.
-
     [Header("Playable Area")]
-    public float levelConstraintTop;                        //The maximum positive Y value of the playable space.
-    public float levelConstraintBottom;                     //The maximum negative Y value of the playable space.
-    public float levelConstraintLeft;                       //The maximum negative X value of the playable space.
-    public float levelConstraintRight;                      //The maximum positive X value of the playablle space.
+    public int  width;
+    public int  margin;
+    public int  rowsTotal;
+    int  rowsOnScreen;
+    public float camUpperY;
 
-    //[Header("Gameplay Loop")]
+    [Header("Gameplay Loop")]
     [System.NonSerialized]  public bool isGameRunning;      //Is the gameplay part of the game current active?
     [System.NonSerialized]  public float totalGameTime;     //The maximum amount of time or the total time avilable to the player.
     [System.NonSerialized]  public float gameTimeRemaining; //The current elapsed time
-    public GameObject       Spawner;
-    const int               rowsOnScreen = 10;
 
     [Header("Sprite Options")]
     public SpriteOptions    spriteOptions;
+    public static int[] logLengths = { 4, 5, 8 };
     
-    [System.NonSerialized] public List<GameObject> rows = new List<GameObject>();
+    [System.NonSerialized] public List<FroggerRow> rows = new List<FroggerRow>();
 
     //====================================  Function - Start()  ========================================================================//
     void Start()
     {
-        FroggerRow safespawner;
-        safespawner = Instantiate(Spawner).GetComponent<FroggerRow>();
-        safespawner.transform.parent = transform;
-        safespawner.name = "Row " + 0;
-        safespawner.transform.position = new Vector2(0, 0);
-        safespawner.rowIndex = 0;
-        safespawner.type = FroggerRow.Type.SAFE;
-        rows.Add(safespawner.gameObject);
+        rowsOnScreen = Mathf.CeilToInt(FindObjectOfType<Camera>().orthographicSize) * 2 + 1;
 
+        spawnRow(0, FroggerRow.Type.SAFE, 1);
         for (int i = 0; i < rowsOnScreen; i++)
-            CreateRow(i + 1);
+             CreateRow(i + 1);
+
+        if (rowsTotal < rowsOnScreen)
+            Debug.Log("Error: rowsTotal < rowsOnScreen");
     }
 
     //====================================  Function - CreateRow()  =====================================================================//
-    public void PlayerJustMoved(int yPos)
+    public void PlayerJustMoved(int yPos, int yDir)
     {
-        int upperBound = yPos + 10;
-        int lowerBound = yPos - 10;
+        int upperBound = yPos + rowsOnScreen / 2;
+        int lowerBound = yPos - rowsOnScreen / 2 - 1;
 
-        if (rows.Count <= upperBound)
-            CreateRow(upperBound);
+        if (yDir == 1) {
+            if (rows.Count <= rowsTotal) {
+                if (rows.Count <= upperBound)
+                    CreateRow(upperBound);
+                else
+                    rows[upperBound].EnableRow();
+            }
+
+            if (lowerBound > 0 && yPos - lowerBound > 0 && yPos <= camUpperY)
+                for (int i = 0; i < lowerBound; i++)
+                    rows[i].DisableRow();
+        }
+        else if (yDir == -1) {
+            if (upperBound > rowsOnScreen)
+                if (upperBound < rows.Count)
+                    rows[upperBound + 1].DisableRow();
+
+            if (lowerBound >= 0)
+                rows[lowerBound].EnableRow();
+        }
+    }
+
+    //====================================  Function - PlayerJustRespawnned()  =====================================================================//
+    public void PlayerJustRespawned()
+    {
+        for (int i = 0; i < rows.Count; i++)
+            if (i < rowsOnScreen)
+                rows[i].gameObject.SetActive(true);
+            else
+                rows[i].gameObject.SetActive(false);
     }
 
     //====================================  Function - CreateRow()  =====================================================================//
     void CreateRow(int i)
     {
-        FroggerRow spawner;
-        spawner = Instantiate(Spawner).GetComponent<FroggerRow>();
-        spawner.transform.parent = transform;
-        spawner.name = "Row " + i;
-        spawner.moveDirection = (int)(((int)(Random.Range(0, 2)) - 0.5) * 2);
-        spawner.speed = Random.Range(2, 7);
-        spawner.transform.position = new Vector2(0, i);
-        spawner.SpawnPosition.y = i;
-        spawner.rowIndex = i;
-
-        if (Random.Range(0, 2) == 0)
-            spawner.GetComponent<FroggerRow>().type = FroggerRow.Type.ROAD;
+        if (i != rowsTotal) {
+            int rand = Random.Range(0, 2);
+            spawnRow(i, (FroggerRow.Type)rand, Random.Range(2.0f, 7.0f) * Mathf.Sign(Random.Range(-1, 1)));
+        }
         else
-            spawner.GetComponent<FroggerRow>().type = FroggerRow.Type.WATER;
-
-        rows.Add(spawner.gameObject);
+            spawnRow(i, FroggerRow.Type.END, 0);
+    }
+    
+    //====================================  Function - SpawnRow()  =====================================================================//
+    void spawnRow(int row, FroggerRow.Type type, float velocity)
+    {
+        FroggerRow spawner;
+        spawner = new GameObject().AddComponent<FroggerRow>();
+        spawner.transform.parent = transform;
+        spawner.name = "Row " + row;
+        spawner.GetComponent<FroggerRow>().velocity = velocity;
+        spawner.transform.position = new Vector2(0, row);
+        spawner.GetComponent<FroggerRow>().type = type;
+        rows.Add(spawner);
     }
 
     //====================================  Struct - SpriteOptions  =====================================================================//
@@ -80,12 +104,17 @@ public class GameManager : MonoBehaviour
     {
         public Sprite[] cars;
         public Sprite[] trucks;
-        public Sprite   log4;
-        public Sprite   log5;
-        public Sprite   log8;
+        public Sprite[] logs;
+        public Sprite   finish;
+
+        public Sprite   croc;
+        public Sprite   turtle;
+        public Sprite   turtle_sub;
+        public Sprite   frog;
 
         public Sprite   ground;
         public Sprite   water;
         public Sprite   safe;
+        public Sprite   end;
     }
 }

@@ -5,32 +5,49 @@ using UnityEditor.ShortcutManagement;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// This script must be used as the core Player script for managing the player character in the game.
-/// </summary>
 [RequireComponent(typeof(AudioSource))]
 public class Player : MonoBehaviour
 {
     //=========================  Enums  =====================================//
-    public enum DeathType { collision, drowning, offscreen };
+    public enum DeathType { collision, drowning, offscreen, chompChompChomp, time };
 
     //=========================  Variables  =====================================//
-                            public  string      playerName              = "";        //The players name for the purpose of storing the high score
-   
-                            public  int         playerTotalLives;                   //Players total possible lives.
-    [System.NonSerialized]  public  int         playerLivesRemaining;               //PLayers actual lives remaining.
+    public  string      playerName              = "";       //The players name for the purpose of storing the high score
+    
+    [System.NonSerialized]
+    public int          playerLivesRemaining    = 5;        //PLayers actual lives remaining.
+    public  int         playerTotalLives        = 5;        //Players total possible lives.
 
-                            private bool        playerIsAlive           = true;     //Is the player currently alive?
-                            private bool        playerCanMove           = false;    //Can the player currently move?
+    [SerializeField]
+    private Text livesText;
+    private List<Image> lifeIMGs;
 
-    [System.NonSerialized]  public  int         moveTimer               = 0;
-                            public  int         moveDelay               = 50;
-                            private Rigidbody2D log                     = null;
+    private bool        playerIsAlive           = true;     //Is the player currently alive?
+    private bool        playerCanMove           = false;    //Can the player currently move?
 
-    [SerializeField]        private Sounds      sounds;
-                            private AudioSource audioSrc;
-    [SerializeField]        private Text        scoreText;
-                            private int         score;
+    [System.NonSerialized]
+    public Vehicle      log = null;
+
+    [SerializeField]
+    private Sounds      sounds;
+    private AudioSource audioSrc;
+
+    [SerializeField]
+    private Text        scoreText;
+    private int         score;
+    private float       highestRow = 0;
+
+    [SerializeField]
+    private Image       timeImg;
+    const float         timeInitial = 20;
+    private float       timeLeft = timeInitial;
+    private float       timeImgXpos;
+    private float       timeImgXsize;
+
+    private GameManager gameManager;
+
+    [SerializeField]
+    private bool        invincibleForTheSakeOfDebugging = false;
 
     //=========================  Function - Start()  =====================================//
     void Start()
@@ -38,32 +55,63 @@ public class Player : MonoBehaviour
         audioSrc = GetComponent<AudioSource>();
         audioSrc.loop = false;
         audioSrc.playOnAwake = false;
+        gameManager = FindObjectOfType<GameManager>();
 
         scoreText.text = "Score: " + score;
+
+        lifeIMGs = new List<Image>();
+
+        for (int i = 0; i < playerTotalLives; i++)
+        {
+            GameObject imgObj = new GameObject();
+            imgObj.transform.parent = livesText.transform.parent;
+            imgObj.AddComponent<RectTransform>().localPosition = livesText.rectTransform.localPosition + new Vector3((i * 25), 5, 0);
+            imgObj.AddComponent<Image>().sprite = gameManager.spriteOptions.frog;
+            imgObj.GetComponent<RectTransform>().sizeDelta = new Vector2(40, 40);
+            imgObj.name = "IMG - Life " + (i + 1);
+            lifeIMGs.Add(imgObj.GetComponent<Image>());
+        }
+
+        timeImgXpos = timeImg.rectTransform.localPosition.x;
+        timeImgXsize = timeImg.rectTransform.sizeDelta.x;
     }
 
     //=========================  Function - Update()  =====================================//
     void Update()
     {
         if (playerIsAlive) {
+            UpdateTime();
+
             //-----------------  Movement  -------------------------------//
             Vector2 movement = GetMovementInput();
 
             if (movement != Vector2.zero)
-                StartCoroutine(Move(movement));
+                if (transform.position.y > 0.5f || movement.y >= 0)
+                    StartCoroutine(Move(movement));
             
             //-----------------  Move with log  -------------------------------//
             if (log != null) {
-                transform.Translate(log.velocity * Time.deltaTime);
+                transform.Translate(log.velocity * Time.deltaTime, 0, 0);
                 CheckForOffscreen();
             }
         }
     }
 
-    //=========================  Function - CurrentScore()  =====================================//
-    void CurrentScore()
+    //=========================  Function - UpdateTime()  =====================================//
+    void UpdateTime()
     {
-        score++;
+        timeLeft -= Time.deltaTime;
+
+        timeImg.rectTransform.sizeDelta = new Vector2(timeImgXsize * timeLeft / timeInitial, timeImg.rectTransform.sizeDelta.y);
+        timeImg.rectTransform.localPosition = new Vector3(timeImgXpos - (timeImgXsize - timeImg.rectTransform.sizeDelta.x) / 2, timeImg.rectTransform.localPosition.y, timeImg.rectTransform.localPosition.z);
+
+        if (timeLeft <= 0)
+            Die(DeathType.time);
+    }
+
+    //=========================  Function - UpdateScore()  =====================================//
+    void UpdateScore()
+    {
         scoreText.text = "Score: " + score;
     }
 
@@ -71,47 +119,15 @@ public class Player : MonoBehaviour
     Vector2 GetMovementInput()
     {
         Vector2 movement = Vector2.zero;
-        moveTimer++;
-        bool keyPressed = false;
-        if (Input.GetKey(KeyCode.W))
-        {
-            keyPressed = true;
-            if (moveTimer > moveDelay)
-            {
-                movement = (new Vector2(0, 1));
-                moveTimer = 0;
-            }
-        }
-        if (Input.GetKey(KeyCode.S))
-        {
-            keyPressed = true;
-            if (moveTimer > moveDelay)
-            {
-                movement = (new Vector2(0, -1));
-                moveTimer = 0;
-            }
-        }
-        if (Input.GetKey(KeyCode.A))
-        {
-            keyPressed = true;
-            if (moveTimer > moveDelay)
-            {
-                movement = (new Vector2(-1, 0));
-                moveTimer = 0;
-            }
-        }
-        if (Input.GetKey(KeyCode.D))
-        {
-            keyPressed = true;
 
-            if (moveTimer > moveDelay)
-            {
-                movement = (new Vector2(1, 0));
-                moveTimer = 0;
-            }
-        }
-        if (!keyPressed)
-            moveTimer = moveDelay;
+        if (Input.GetKeyDown (KeyCode.W))
+            movement = (new Vector2(0, 1));
+        if (Input.GetKeyDown (KeyCode.S))
+            movement = (new Vector2(0, -1));
+        if (Input.GetKeyDown (KeyCode.A))
+            movement = (new Vector2(-1, 0));
+        if (Input.GetKeyDown (KeyCode.D))
+            movement = (new Vector2(1, 0));
 
         return movement;
     }
@@ -121,7 +137,7 @@ public class Player : MonoBehaviour
     {
         //-----------------  Spawn additional row?  -------------------------------//
         if (movement.y != 0)
-            FindObjectOfType<GameManager>().PlayerJustMoved(Mathf.RoundToInt(transform.position.y + movement.y));
+            FindObjectOfType<GameManager>().PlayerJustMoved(Mathf.RoundToInt(transform.position.y + movement.y), (int)movement.y);
         else
             CheckForOffscreen();
 
@@ -139,11 +155,41 @@ public class Player : MonoBehaviour
         }
         
         //-----------------  Check for drowning  -------------------------------//
-        if (playerIsAlive)
+        if (playerIsAlive) {
             CheckForDrowning();
+            CheckForEnd();
 
-        if (movement.y > 0)
-        CurrentScore();
+            if (transform.position.y > highestRow) {
+                score += Mathf.RoundToInt(transform.position.y - highestRow) * 100 + UnityEngine.Random.Range (0, 25);
+                highestRow = transform.position.y;
+                UpdateScore();
+            }
+        }
+    }
+
+    //=========================  IEnumerator - CheckForEnd()  =====================================//
+    void CheckForEnd()
+    {
+        EndSpot endSpot = GameObject.Find("Row " + Mathf.RoundToInt(transform.position.y)).GetComponent<EndSpot>();
+        if (endSpot != null)
+        {
+            switch (endSpot.state)
+            {
+                case (int)EndSpot.State.FILLED:
+                    break;
+                case EndSpot.State.EMPTY:
+                    score += 1000;
+                    endSpot.state = EndSpot.State.FILLED;
+                    break;
+                case EndSpot.State.FLY:
+                    score += 1500;
+                    endSpot.state = EndSpot.State.FILLED;
+                    break;
+                case EndSpot.State.CROC:
+                    Die(DeathType.chompChompChomp);
+                    break;
+            }
+        }
     }
 
     //=========================  IEnumerator - Respawn()  =====================================//
@@ -154,6 +200,9 @@ public class Player : MonoBehaviour
 
         yield return new WaitForSeconds(0.5f);
         playerIsAlive = true;
+        highestRow = 0;
+
+        gameManager.PlayerJustRespawned();
     }
 
     //=========================  Function - CheckForDrowning()  =====================================//
@@ -168,10 +217,7 @@ public class Player : MonoBehaviour
     //=========================  Function - CheckForOffscreen()  =====================================//
     void CheckForOffscreen()
     {
-        float leftBound = FindObjectOfType<GameManager>().levelConstraintLeft - 10;
-        float rightBound = FindObjectOfType<GameManager>().levelConstraintRight + 10;
-
-        if (transform.position.x < leftBound || transform.position.x > rightBound) {
+        if (Mathf.Abs(transform.position.x) > gameManager.width / 2 - 1) {
             FroggerRow froggerRow = GameObject.Find("Row " + (int)(transform.position.y)).GetComponent<FroggerRow>();
 
             switch (froggerRow.type) {
@@ -193,19 +239,32 @@ public class Player : MonoBehaviour
     //=========================  Function - Die()  =====================================//
     public void Die(DeathType deathType)
     {
-        //Debug.Log("We died of " + deathType + ", row: " + GameObject.Find("Row " + (int)(transform.position.y)).name);
-        playerIsAlive = false;
+        if (!invincibleForTheSakeOfDebugging)
+        {
+            //Debug.Log("We died of " + deathType);
+            playerIsAlive = false;
+            playerLivesRemaining--;
 
-        if (deathType == DeathType.collision)
-            audioSrc.clip = sounds.deathCollision;
-        else if (deathType == DeathType.drowning)
-            audioSrc.clip = sounds.deathDrowning;
-        else
-            Debug.Log("DeathType: " + deathType);
+            switch (deathType) {
+                case DeathType.collision:
+                    audioSrc.clip = sounds.deathCollision;
+                    break;
+                case DeathType.drowning:
+                    audioSrc.clip = sounds.deathDrowning;
+                    break;
+                default:
+                    audioSrc.clip = sounds.deathCollision;
+                    break;
+            }
 
-        audioSrc.Play();
+            audioSrc.Play();
 
-        StartCoroutine(Respawn());
+            if (playerLivesRemaining >= 0) {
+                StartCoroutine(Respawn());
+                lifeIMGs[playerLivesRemaining].gameObject.SetActive(false);
+            }
+
+        }
     }
 
     //=========================  Struct - Sounds  =====================================//
@@ -215,17 +274,21 @@ public class Player : MonoBehaviour
         public AudioClip deathDrowning;
         public AudioClip hop;
     }
-    
+
     //===========================  Trigger - OnTriggerEnter2D()  =====================================//
-    void OnTriggerStay2D(Collider2D other)
+    void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.gameObject.tag == "Log")
-            log = other.gameObject.GetComponent<Rigidbody2D>();
+        if (other.GetComponent<Vehicle>() != null && other.GetComponent<Vehicle>().type == Vehicle.Type.LOG_ETC)
+            log = other.gameObject.GetComponent<Vehicle>();
+
+        if (other.GetComponent<Vehicle>() != null && other.GetComponent<Vehicle>().type == Vehicle.Type.CROC_HEAD)
+            Die(DeathType.chompChompChomp);
     }
 
     //===========================  Trigger - OnTriggerExit2D()  =====================================//
     void OnTriggerExit2D(Collider2D other)
     {
-        log = null;
+        if (log != null && other.gameObject == log.gameObject)
+            log = null;
     }
 }

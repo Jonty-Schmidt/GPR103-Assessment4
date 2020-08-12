@@ -7,33 +7,28 @@ using UnityEngine;
 /// </summary>
 public class Vehicle : MonoBehaviour
 {
-    /*
-    //===========================  Variables  =====================================//
-    public int      moveDirection;      //This variabe is to be used to indicate the direction the vehicle is moving in.
-    public float    speed;              //This variable is to be used to control the speed of the vehicle.
-    public Vector2  startingPosition;   //This variable is to be used to indicate where on the map the vehicle starts (or spawns)
-    public Vector2  endPosition;        //This variablle is to be used to indicate the final destination of the vehicle.
+    public enum Type { CAR_ETC, LOG_ETC, TURTLE_SUBMERGED, CROC_HEAD};
+    public Type type;
+    public float edgeBounds;
+    public float velocity;
+    public static int[] logLengths = { 4, 5, 8};
 
-    //===========================  Function - Start()  =====================================//
-    void Start()
-    {
-
-    }
-    */
-    
     //===========================  Function - Update()  =====================================//
     void Update()
     {
-        if (Mathf.Abs(transform.position.x) > 20)
-            Destroy(this.gameObject);
+        transform.position += new Vector3 (velocity * Time.deltaTime, 0, 0);
 
+        if (Mathf.Abs(transform.position.x) > edgeBounds)
+        {
+            if (type != Type.CROC_HEAD)
+                Destroy(this.gameObject);
+        }
     }
 
     //===========================  Collision - OnCollisionEnter2D()  =====================================//
-    void OnCollisionEnter2D(Collision2D collision)
+    void OnTriggerEnter2D(Collider2D other)
     {
-        if (collision.gameObject.tag == "Player")
-            //if (!GameObject.Find("Spawner " + (int)(collision.transform.position.y)).GetComponent<FroggerRow>().water)
-                collision.gameObject.GetComponent<Player>().Die(Player.DeathType.collision);
+        if (other.gameObject.GetComponent<Player>() != null && type == Type.CAR_ETC)
+            other.gameObject.GetComponent<Player>().Die(Player.DeathType.collision);
     }
 }
