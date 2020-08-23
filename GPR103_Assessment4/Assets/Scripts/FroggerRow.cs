@@ -8,7 +8,7 @@ public class FroggerRow : MonoBehaviour
     public enum Type { WATER, ROAD, SAFE, END}
 
     public float    velocity;
-    float           delay = 4;
+    float           delay = 1;
     float           timer = float.MaxValue;
     public Type     type;
     float           randDelay = 0;
