@@ -238,8 +238,6 @@ public class GameManager : MonoBehaviour
 
         if (dieNotUnDie)
         {
-            rows.Clear();
-
             menuDeath.SetActive(true);
 
             foreach (Image image in images)
@@ -249,13 +247,15 @@ public class GameManager : MonoBehaviour
                 text.color = new Color(text.color.r, text.color.g, text.color.b, 0);
 
             player.enabled = false;
+
             foreach (Vehicle vehicle in vehicles)
                 Destroy(vehicle.gameObject);
             foreach (FroggerRow froggerRow in rows)
                 Destroy(froggerRow.gameObject);
 
-            while (timeElapsed <= duration)
-            {
+            rows.Clear();
+            
+            while (timeElapsed <= duration) {
                 yield return 0;
                 timeElapsed += Time.deltaTime;
 
